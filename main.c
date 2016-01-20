@@ -147,18 +147,15 @@ int do_watermark(gdImage* watermark, gdImage* picture, int offset_x, int offset_
     assert(watermark);
     assert(picture);
 
-    gdImageSaveAlpha(watermark, 1);
     int watermarkX = gdImageSX(watermark);
     int watermarkY = gdImageSX(watermark);
 
-    //opacity
-    gdImageAlphaBlending(picture, 1);
-    gdImageCopy(picture, watermark, offset_x, offset_y, 0, 0, watermarkX, watermarkY);
+    gdImageCopyMerge(picture, watermark, offset_x, offset_y, 0, 0, watermarkX, watermarkY, opacity);
 }
 
 int main(int argc, char** arg)
 {
-    gdImage* watermark = createImage("./images/watermark.png");
+    gdImage* watermark = createImage("./images/bird.jpg");
     gdImage* picture   = createImage("images/picture.png");
 
     if(!watermark)
@@ -175,7 +172,7 @@ int main(int argc, char** arg)
 
     do_watermark(watermark, picture, 5, 6, 50);
 
-    FILE* fp = fopen("images/result.png", "wb");
+    FILE* fp = fopen("images/result1.png", "wb");
     if(!fp)
     {
         fprintf(stderr, "can't open file for result");
