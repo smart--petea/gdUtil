@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <assert.h>
 #include <string.h>
 
 
@@ -79,54 +80,10 @@ static int image_type(char data[8])
     return -1;
 }
 
-
-/*
-imagecreatefromstring()
-{
-    gdImagePtr im;
-    int imtype;
-    char sig[8];
-
-    memcpy(sig, Z_STRVAL_P(data), 8);
-
-    imtype = image_type(sig);
-
-    switch (imtype) {
-        case IMG_TYPE_JPG:
-            im = _php_image_create_from_string(data, "JPEG", gdImageCreateFromJpegCtx);
-            break;
-
-        case IMG_TYPE_PNG:
-            im = _php_image_create_from_string(data, "PNG", gdImageCreateFromPngCtx);
-            break;
-
-        case IMG_TYPE_GIF:
-        im = _php_image_create_from_string(data, "GIF", gdImageCreateFromGifCtx);
-        break;
-
-        case IMG_TYPE_WBM:
-        im = _php_image_create_from_string(data, "WBMP", gdImageCreateFromWBMPCtx);
-        break;
-
-        case IMG_TYPE_GD2:
-        im = _php_image_create_from_string(data, "GD2", gdImageCreateFromGd2Ctx);
-        break;
-
-    default:
-       return -1;
-    }
-
-    if (!im) {
-        return -1;
-    }
-
-    return 1;
-}
-*/
-
 gdImage* createImage(const char* filename)
 {
     FILE* fp;
+    printf("filename = '%s'\n", filename);
     fp = fopen(filename, "rb");
     if(!fp)
     {
@@ -134,30 +91,99 @@ gdImage* createImage(const char* filename)
         return NULL;
     }
 
-    gdImagePtr im;
+    gdImage* im;
     int imtype;
     char sig[8];
+    int i;
 
-    if(fgets(sig, 8, fp) == 0)
-    {
-        fprintf(stderr, "can't determine filetype of '%s'\n", filename);
-        return NULL;
+    fread(sig, 1, 8, fp);
+    fseek(fp, 0, SEEK_SET);
+    imtype = image_type(sig);
+
+    printf("image_type = %d\n", imtype);
+
+    switch (imtype) {
+        case IMG_TYPE_JPG:
+            printf("JPG\n");
+            im = gdImageCreateFromJpeg(fp);
+            break;
+
+        case IMG_TYPE_PNG:
+            printf("PNG\n");
+            im = gdImageCreateFromPng(fp);
+            break;
+
+        case IMG_TYPE_GIF:
+            printf("GIF\n");
+            im = gdImageCreateFromGif(fp);
+            break;
+
+        case IMG_TYPE_WBM:
+            printf("WBM\n");
+            im = gdImageCreateFromWBMP(fp);
+            break;
+
+        case IMG_TYPE_GD2:
+            printf("GD2\n");
+            im = gdImageCreateFromGd2(fp);
+            break;
+
+        default:
+            im = NULL;
     }
 
-    printf("%d\n", image_type(sig));
+    fclose(fp);
+
+    if (!im) {
+        fprintf(stderr, "[create image] not created\n");
+        return NULL;
+    }
 
     return im;
 }
 
 int do_watermark(gdImage* watermark, gdImage* picture, int offset_x, int offset_y, int opacity)
 {
+    assert(watermark);
+    assert(picture);
 
+    gdImageSaveAlpha(watermark, 1);
+    int watermarkX = gdImageSX(watermark);
+    int watermarkY = gdImageSX(watermark);
+
+    //opacity
+    gdImageAlphaBlending(picture, 1);
+    gdImageCopy(picture, watermark, offset_x, offset_y, 0, 0, watermarkX, watermarkY);
 }
 
 int main(int argc, char** arg)
 {
-    gdImage* watermark = createImage("images/watermark.jpg");
-    //gdImage* picture = createImage("picture.jpg");
+    gdImage* watermark = createImage("./images/watermark.png");
+    gdImage* picture   = createImage("images/picture.png");
 
-    //do_watermark(watermark, picture, 5, 6, 50);
+    if(!watermark)
+    {
+        fprintf(stderr, "watermark have not been read");
+        return 1;
+    }
+
+    if(!picture)
+    {
+        fprintf(stderr, "picture have not been read");
+        return 1;
+    }
+
+    do_watermark(watermark, picture, 5, 6, 50);
+
+    FILE* fp = fopen("images/result.png", "wb");
+    if(!fp)
+    {
+        fprintf(stderr, "can't open file for result");
+        return 1;
+    }
+
+    gdImagePng(picture, fp);
+    fclose(fp);
+
+    return 0;
 }
